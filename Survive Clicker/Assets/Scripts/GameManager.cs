@@ -1,4 +1,6 @@
+using NUnit.Framework;
 using System.Collections;
+using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
 
@@ -13,8 +15,8 @@ public class GameManager : MonoBehaviour
     [SerializeField] private int wood; //x
     [SerializeField] private int gold;
     [SerializeField] private int food; //x
-    [SerializeField] private int stone;
-    [SerializeField] private int iron;
+    [SerializeField] private int stone; //x
+    [SerializeField] private int iron; //x
     [SerializeField] private int tools;
 
     //farm, house, ironMines, goldMines, woodcutter, blacksmith, quarry,
@@ -23,10 +25,9 @@ public class GameManager : MonoBehaviour
     [SerializeField] private int house; //1 house takes 4 people
     [SerializeField] private int farm; //x
     [SerializeField] private int woodcutter; //x
-    [SerializeField] private int blacksmith;
-    [SerializeField] private int quarry;
+    [SerializeField] private int blacksmith; //x
+    [SerializeField] private int quarry; //x
     [SerializeField] private int ironMines;
-    [SerializeField] private int goldMines;
 
     [Space(10)]
     [Header("Resources Texts")]
@@ -35,13 +36,18 @@ public class GameManager : MonoBehaviour
     [SerializeField] private TMP_Text woodText;
     [SerializeField] private TMP_Text foodText;
     [SerializeField] private TMP_Text ironText;
+    [SerializeField] private TMP_Text stoneText;
+    [SerializeField] private TMP_Text toolsText;
 
     [Space(10)]
     [Header("Buildings Texts")]
     [SerializeField] private TMP_Text houseText;
     [SerializeField] private TMP_Text farmText;
     [SerializeField] private TMP_Text woodcutterText;
+    [SerializeField] private TMP_Text quarryText;
+    [SerializeField] private TMP_Text blacksmithText;
     [SerializeField] private TMP_Text notifiactionText;
+
     private float timer;
     private bool isGameRunning;
 
@@ -88,6 +94,7 @@ public class GameManager : MonoBehaviour
             FoodGathering();
             FoodProduction();
             WoodProduction();
+            StoneProduction();
             FoodConsumption();
             IncreasePopulation();
 
@@ -108,6 +115,12 @@ public class GameManager : MonoBehaviour
     private void FoodConsumption()
     {
         food -= Population();
+
+        if(food < 0)
+        {
+            unemployed--;
+            workers--;
+        }
     }
     /// <summary>
     /// Gather food
@@ -122,6 +135,10 @@ public class GameManager : MonoBehaviour
     private void FoodProduction()
     {
         food += farm * 4;
+    }
+    private void StoneProduction()
+    {
+        stone += quarry * 4;
     }
     /// <summary>
     /// number of max residents * 4
@@ -161,8 +178,13 @@ public class GameManager : MonoBehaviour
     }
     private void WorkerAssign(int amount)
     {
-        unemployed -= amount;
-        workers += amount;
+        if (CanAssignWorker(amount))
+        {
+            unemployed -= amount;
+            workers += amount;
+            UpdateText();
+        }
+        else StartCoroutine(NotificationText($"Cannot assign {amount} workers"));
     }
 
     private bool CanAssignWorker(int amount)
@@ -174,60 +196,35 @@ public class GameManager : MonoBehaviour
     /// </summary>
     public void BuildFarm()
     {
-        if (wood >= 10 && CanAssignWorker(2))
-        {
-            wood -= 10;
-            WorkerAssign(2);
-            farm++;
-            UpdateText();
-            string text = $"You successfully built a farm";
-            StartCoroutine(NotificationText(text));
-        }
-        else
-        {
-            string text = $"You need {Mathf.Abs(10 - wood)} wood or{Mathf.Abs(1 - unemployed)} more people";
-            StartCoroutine(NotificationText(text));
-        }
+        Build(5, 0, 2, "Farm", ref farm);
     }
     /// <summary>
     /// izgradi woodcuttera
     /// </summary>
     public void BuildWoodcutter()
     {
-        if(wood >= 5 && iron > 0 && CanAssignWorker(1))
-        {
-            iron--;
-            wood -= 5;
-            WorkerAssign(1);
-            woodcutter++;
-            UpdateText();
-            string text = $"You have built woodcutters hut";
-            StartCoroutine(NotificationText(text));
-        }
-        else
-        {
-            string text = $"You need {5 - wood} wood or {Mathf.Abs(1 - iron)} more iron or{Mathf.Abs(1 - unemployed)} more people";
-            StartCoroutine(NotificationText(text));
-        }
+        Build(5, 1, 2, "Woodcutter's Lodge", ref woodcutter);
     }
     /// <summary>
     /// izgradi house
     /// </summary>
     public void BuildHouse()
     {
-        if(wood >= 2)
-        {
-            wood -= 2;
-            house++;
-            UpdateText();
-            string text = $"You successfully built a house";
-            StartCoroutine(NotificationText(text));
-        }
-        else
-        {
-            string text = $"You need {Mathf.Abs(2 - wood)} more wood";
-            StartCoroutine(NotificationText(text));
-        }
+        Build(2, 0, 0, "House", ref house);
+    }
+    /// <summary>
+    /// izgradi quarry
+    /// </summary>
+    public void BuildQuarry()
+    {
+        Build(5, 2, 2, "Quarry", ref quarry);
+    }
+    /// <summary>
+    /// izgradi blacksmitha
+    /// </summary>
+    public void BuildBlacksmith()
+    {
+        Build(10, 10, 1, "Blacksmith", ref blacksmith);
     }
 
     /// <summary>
@@ -254,6 +251,8 @@ public class GameManager : MonoBehaviour
         houseText.text = $"HOUSES: {house}";
         farmText.text = $"FARMS: {farm}";
         woodcutterText.text = $"WOODCUTTERS: {woodcutter}";
+        quarryText.text = $"QUARRIES: {quarry}";
+        blacksmithText.text = $"BLACKSMITHS: {blacksmith}";
     }
 
     IEnumerator NotificationText(string text)
@@ -263,15 +262,23 @@ public class GameManager : MonoBehaviour
         notifiactionText.text = string.Empty;
     }
 
-    //TODO: Make this method a class
-    //private void BuildCost(int woodCost, int stoneCost, int workerAssign)
-    //{
-    //    if(wood >= woodCost && stone >= stoneCost && unemployed >= workerAssign)
-    //    {
-    //        wood -= woodCost;
-    //        stone -= stoneCost;
-    //        unemployed -= workerAssign;
-    //        workers += workerAssign;
-    //    }
-    //}
+    private void Build(int woodCost, int stoneCost, int workerAssign, string name, ref int buildingCount)
+    {
+        if (wood >= woodCost && stone >= stoneCost && unemployed >= workerAssign)
+        {
+            wood -= woodCost;
+            stone -= stoneCost;
+            WorkerAssign(workerAssign);
+            buildingCount++;
+            UpdateText();
+            string text = $"You successfully built a {name}";
+            StartCoroutine(NotificationText(text));
+        }
+        else
+        {
+            string text = $"You need {Mathf.Abs(woodCost - wood)} more wood, {Mathf.Abs(stone - stoneCost)} more stone and {Mathf.Abs(unemployed - workerAssign)} more people";
+            StartCoroutine(NotificationText(text));
+        }
+
+    }
 }
