@@ -39,11 +39,10 @@ public class GameManager : MonoBehaviour
     [SerializeField] private int workers; //x
     [SerializeField] private int unemployed; //x
     [SerializeField] private int wood; //x
-    [SerializeField] private int gold;
     [SerializeField] private int food; //x
     [SerializeField] private int stone; //x
     [SerializeField] private int iron; //x
-    [SerializeField] private int tools;
+    [SerializeField] private int tools; //x
 
     //farm, house, ironMines, goldMines, woodcutter, blacksmith, quarry,
     [Space(10)]
@@ -82,6 +81,7 @@ public class GameManager : MonoBehaviour
     [SerializeField] List<Color> gameColors;
     [SerializeField] float seasonTimeToPass = 180f;
     [SerializeField] private TMP_Text seasonText;
+    [SerializeField] private TMP_Text seasonTimeText;
     [SerializeField] private List<SeasonEffect> seasonEffects;
 
     [Space(10)]
@@ -96,7 +96,6 @@ public class GameManager : MonoBehaviour
     private float timer;
     private int currentBackground;
     private bool isGameRunning;
-    private Coroutine seasons;
 
     private SeasonEffect currentSeasonEffect;
 
@@ -106,7 +105,7 @@ public class GameManager : MonoBehaviour
         UpdateText();
         UpdateSeasonState();
         UpdatePopulationImages();
-        seasons = StartCoroutine(ChangeSeasons());
+        StartCoroutine(ChangeSeasons());
     }
     private void Update()
     {
@@ -114,21 +113,24 @@ public class GameManager : MonoBehaviour
         if (Input.GetKeyDown(KeyCode.Alpha0))
         {
             Time.timeScale = 0;
+            Debug.Log($"X0 speed");
         }
         if (Input.GetKeyDown(KeyCode.Alpha1))
         {
             Time.timeScale = 1;
+            Debug.Log($"X1 speed");
         }
         if (Input.GetKeyDown(KeyCode.Alpha2))
         {
             Time.timeScale = 2.5f;
+            Debug.Log($"X2.5 speed");
         }
         if (Input.GetKeyDown(KeyCode.Alpha3))
         {
             Time.timeScale = 5;
-            Debug.Log("Speed!");
+            Debug.Log($"X5 SPEED");
         }
-        //one minute is one day
+
         TimeOfDay();
         UpdatePopulationImageMovement();
     }
@@ -179,6 +181,7 @@ public class GameManager : MonoBehaviour
                 tick += Time.deltaTime;
                 float progress = tick / seasonTimeToPass;
                 gameBackground.color = Color.Lerp(startColor, targetColor, progress);
+                seasonTimeText.text = $"Next season in {(int)(seasonTimeToPass - tick)} seconds";
                 yield return null;
             }
             gameBackground.color = targetColor;
@@ -213,10 +216,13 @@ public class GameManager : MonoBehaviour
     /// </summary>
     private void FoodConsumption()
     {
+        string text = $"You lost {food - Population()} food";
+        StartCoroutine(NotificationText(text));
         food -= Population();
 
         if (food < 0)
         {
+            StartCoroutine(NotificationText($"You are losing people!"));
             if (unemployed > 0)
             {
                 unemployed--;
@@ -236,7 +242,11 @@ public class GameManager : MonoBehaviour
         }
     }
 
-    private float GetToolProductionMultiplier()
+    /// <summary>
+    /// ako imamo alate oni povecavaju produktivnost
+    /// </summary>
+    /// <returns></returns>
+    private float ToolProductionMultiplier()
     {
         return 1f + (tools * baseToolEfficiency);
     }
@@ -245,7 +255,7 @@ public class GameManager : MonoBehaviour
     /// </summary>
     private void FoodGathering()
     {
-        float toolEfficiency = GetToolProductionMultiplier();
+        float toolEfficiency = ToolProductionMultiplier();
         food += (int)(unemployed / 2 * currentSeasonEffect.foodGatheringMultiplier * toolEfficiency);
     }
     /// <summary>
@@ -253,12 +263,12 @@ public class GameManager : MonoBehaviour
     /// </summary>
     private void FoodProduction()
     {
-        float toolEfficiency = GetToolProductionMultiplier();
+        float toolEfficiency = ToolProductionMultiplier();
         food += (int)(farm * 4 * currentSeasonEffect.foodProductionMultiplier * toolEfficiency);
     }
     private void StoneProduction()
     {
-        float toolEfficiency = GetToolProductionMultiplier();
+        float toolEfficiency = ToolProductionMultiplier();
         stone += (int)(quarry * 4 * currentSeasonEffect.stoneProductionMultiplier * toolEfficiency);
     }
     /// <summary>
@@ -266,12 +276,12 @@ public class GameManager : MonoBehaviour
     /// </summary>
     private void WoodProduction()
     {
-        float toolEfficiency = GetToolProductionMultiplier();
+        float toolEfficiency = ToolProductionMultiplier();
         wood += (int)(woodcutter * 2 * currentSeasonEffect.woodProductionMultiplier * toolEfficiency);
     }
     private void IronProduction()
     {
-        float toolEfficiency = GetToolProductionMultiplier();
+        float toolEfficiency = ToolProductionMultiplier();
         iron += (int)(ironMines * 2 * currentSeasonEffect.ironProductionMultiplier * toolEfficiency);
     }
     private void ToolsProduction()
@@ -344,7 +354,7 @@ public class GameManager : MonoBehaviour
             }
             else
             {
-                Debug.LogWarning("Population Image prefab or container is not assigned in gameManager.");
+                Debug.Log("Population Image prefab or container is not assigned in gameManager.");
                 break;
             }
         }
