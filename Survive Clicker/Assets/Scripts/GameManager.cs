@@ -1,9 +1,33 @@
-using NUnit.Framework;
+
 using System.Collections;
 using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
+using UnityEngine.UI;
 
+public enum SeasonType
+{
+    Summer,
+    Autumn,
+    Winter,
+    Spring
+}
+[System.Serializable]
+public class SeasonEffect
+{
+    public SeasonType season;
+    public float foodProductionMultiplier = 1f;
+    public float woodProductionMultiplier = 1f;
+    public float stoneProductionMultiplier = 1f;
+    public float foodGatheringMultiplier = 1f;
+}
+
+public class PopulationImageState
+{
+    public RectTransform rectTransform;
+    public Vector2 targetPosition;
+    public float currentMoveTime; // Timer for when to pick a new target
+}
 public class GameManager : MonoBehaviour
 {
     //population, wood, gold, food, stone, iron, tools, 
@@ -48,15 +72,42 @@ public class GameManager : MonoBehaviour
     [SerializeField] private TMP_Text blacksmithText;
     [SerializeField] private TMP_Text notifiactionText;
 
+    [Space(10)]
+    [Header("Season references")]
+    [SerializeField] List<string> currentSeason;
+    [SerializeField] Image gameBackground;
+    [SerializeField] List<Color> gameColors;
+    [SerializeField] float seasonTimeToPass = 180f;
+    [SerializeField] private TMP_Text seasonText;
+    [SerializeField] private List<SeasonEffect> seasonEffects;
+
+    [Space(10)]
+    [Header("Population UI Images")]
+    [SerializeField] private Transform populationImageContainer;
+    [SerializeField] private GameObject populationImagePrefab;
+    [SerializeField] private float populationMoveSpeed = 1f;
+    [SerializeField] private float populationChangeTargetInterval = 2f;
+    [SerializeField] private float populationPadding = 0f;
+    private List<PopulationImageState> currentPopulationImages = new List<PopulationImageState>();
+
     private float timer;
+    private int currentBackground;
     private bool isGameRunning;
+    private Coroutine seasons;
+
+    private SeasonEffect currentSeasonEffect;
 
     private void Awake()
     {
+        currentBackground = 0;
         UpdateText();
+        UpdateSeasonState();
+        UpdatePopulationImages();
+        seasons = StartCoroutine(ChangeSeasons());
     }
     private void Update()
     {
+        //time scales
         if (Input.GetKeyDown(KeyCode.Alpha0))
         {
             Time.timeScale = 0;
@@ -76,6 +127,7 @@ public class GameManager : MonoBehaviour
         }
         //one minute is one day
         TimeOfDay();
+        UpdatePopulationImageMovement();
     }
 
     /// <summary>
@@ -99,9 +151,51 @@ public class GameManager : MonoBehaviour
             IncreasePopulation();
 
             UpdateText();
+            UpdatePopulationImages();
 
             timer = 0;
         }
+    }
+
+    //changes seasons
+    IEnumerator ChangeSeasons()
+    {
+        while (true)
+        {
+            Color startColor = gameBackground.color;
+            currentBackground = (currentBackground + 1) % gameColors.Count;
+            Color targetColor = gameColors[currentBackground];
+
+            UpdateSeasonState();
+
+            float tick = 0f;
+            while (tick < seasonTimeToPass)
+            {
+                tick += Time.deltaTime;
+                float progress = tick / seasonTimeToPass;
+                gameBackground.color = Color.Lerp(startColor, targetColor, progress);
+                yield return null;
+            }
+            gameBackground.color = targetColor;
+        }
+    }
+
+
+    /// <summary>
+    /// current season
+    /// </summary>
+    private void UpdateSeasonState()
+    {
+        SeasonType newSeasonType = (SeasonType)(currentBackground % System.Enum.GetValues(typeof(SeasonType)).Length);
+
+        currentSeasonEffect = seasonEffects.Find(effect => effect.season == newSeasonType);
+
+        if (currentSeasonEffect == null)
+        {
+            Debug.Log("WTF assignaj efekte godisnjih doba u inspektoru");
+            currentSeasonEffect = new SeasonEffect { season = newSeasonType, foodProductionMultiplier = 1f, woodProductionMultiplier = 1f, stoneProductionMultiplier = 1f, foodGatheringMultiplier = 1f };
+        }
+        seasonText.text = $"Season: {currentSeasonEffect.season.ToString()}";
     }
 
     public void InitializeGame()
@@ -116,10 +210,24 @@ public class GameManager : MonoBehaviour
     {
         food -= Population();
 
-        if(food < 0)
+        if (food < 0)
         {
-            unemployed--;
-            workers--;
+            if (unemployed > 0)
+            {
+                unemployed--;
+            }
+            else if (workers > 0)
+            {
+                workers--;
+            }
+
+            if (unemployed < 0) unemployed = 0;
+            if (workers < 0) workers = 0;
+
+            if (Population() <= 0)
+            {
+                GameOver();
+            }
         }
     }
     /// <summary>
@@ -127,18 +235,25 @@ public class GameManager : MonoBehaviour
     /// </summary>
     private void FoodGathering()
     {
-        food += unemployed / 2;
+        food += (int)(unemployed / 2 * currentSeasonEffect.foodGatheringMultiplier);
     }
     /// <summary>
     /// produce food
     /// </summary>
     private void FoodProduction()
     {
-        food += farm * 4;
+        food += (int)(farm * 4 * currentSeasonEffect.foodProductionMultiplier);
     }
     private void StoneProduction()
     {
-        stone += quarry * 4;
+        stone += (int)(quarry * 4 * currentSeasonEffect.stoneProductionMultiplier);
+    }
+    /// <summary>
+    /// proizvodnja drva
+    /// </summary>
+    private void WoodProduction()
+    {
+        wood += (int)(woodcutter * 2 * currentSeasonEffect.woodProductionMultiplier);
     }
     /// <summary>
     /// number of max residents * 4
@@ -176,6 +291,35 @@ public class GameManager : MonoBehaviour
     {
         return workers + unemployed;
     }
+
+    private void UpdatePopulationImages()
+    {
+        foreach (PopulationImageState state in currentPopulationImages)
+        {
+            Destroy(state.rectTransform.gameObject);
+        }
+        currentPopulationImages.Clear();
+
+        int currentPopulation = Population();
+        for (int i = 0; i < currentPopulation; i++)
+        {
+            if (populationImagePrefab != null && populationImageContainer != null)
+            {
+                GameObject newImageGO = Instantiate(populationImagePrefab, populationImageContainer);
+                RectTransform newImageRect = newImageGO.GetComponent<RectTransform>();
+
+                PopulationImageState newState = new PopulationImageState { rectTransform = newImageRect, currentMoveTime = 0f};
+                SetNewTargetPosition(newState);
+                currentPopulationImages.Add(newState);
+            }
+            else
+            {
+                Debug.LogWarning("Population Image Prefab or Container is not assigned in GameManager.");
+                break;
+            }
+        }
+    }
+
     private void WorkerAssign(int amount)
     {
         if (CanAssignWorker(amount))
@@ -227,13 +371,6 @@ public class GameManager : MonoBehaviour
         Build(10, 10, 1, "Blacksmith", ref blacksmith);
     }
 
-    /// <summary>
-    /// proizvodnja drva
-    /// </summary>
-    private void WoodProduction()
-    {
-        wood += woodcutter * 2;
-    }
 
     /// <summary>
     /// updates text
@@ -246,6 +383,8 @@ public class GameManager : MonoBehaviour
         woodText.text = $"Wood: {wood}";
         foodText.text = $"Food: {food}";
         ironText.text = $"Iron: {iron}";
+        stoneText.text = $"Stone: {stone}";
+        toolsText.text = $"Tools: {tools}";
 
         //buildings
         houseText.text = $"HOUSES: {house}";
@@ -270,15 +409,83 @@ public class GameManager : MonoBehaviour
             stone -= stoneCost;
             WorkerAssign(workerAssign);
             buildingCount++;
-            UpdateText();
             string text = $"You successfully built a {name}";
             StartCoroutine(NotificationText(text));
         }
         else
         {
-            string text = $"You need {Mathf.Abs(woodCost - wood)} more wood, {Mathf.Abs(stone - stoneCost)} more stone and {Mathf.Abs(unemployed - workerAssign)} more people";
+            string text = $"You need ";
+            List<string> missing = new List<string>();
+            if (wood < woodCost)
+            {
+                missing.Add($"{woodCost - wood} more wood");
+            }
+            if (stone < stoneCost)
+            {
+                missing.Add($"{stoneCost - stone} more stone");
+            }
+            if (unemployed < workerAssign)
+            {
+                missing.Add($"{workerAssign - unemployed} more unemployed workers");
+            }
+
+            text += string.Join(", ", missing);
             StartCoroutine(NotificationText(text));
         }
 
+    }
+
+
+    /// <summary>
+    /// kretanje slike po ekranu(nisam znao kako pa sam koristio ai)
+    /// </summary>
+    private void UpdatePopulationImageMovement()
+    {
+        if (populationImageContainer == null) return;
+
+        RectTransform parentRect = populationImageContainer.GetComponent<RectTransform>();
+        if (parentRect == null) return;
+
+        foreach (PopulationImageState state in currentPopulationImages)
+        {
+            if (state.rectTransform == null) continue;
+
+            state.currentMoveTime += Time.deltaTime;
+
+            if (state.currentMoveTime >= populationChangeTargetInterval)
+            {
+                SetNewTargetPosition(state);
+                state.currentMoveTime = 0f;
+            }
+
+            state.rectTransform.localPosition = Vector2.Lerp(state.rectTransform.localPosition, state.targetPosition, Time.deltaTime * populationMoveSpeed);
+        }
+    }
+
+    private void SetNewTargetPosition(PopulationImageState imageState)
+    {
+        if (populationImageContainer == null || imageState.rectTransform == null) return;
+
+        RectTransform parentRect = populationImageContainer.GetComponent<RectTransform>();
+        if (parentRect == null) return;
+
+        float myWidth = imageState.rectTransform.rect.width;
+        float myHeight = imageState.rectTransform.rect.height;
+
+        float minX = parentRect.rect.xMin + myWidth / 2f + populationPadding;
+        float maxX = parentRect.rect.xMax - myWidth / 2f - populationPadding;
+        float minY = parentRect.rect.yMin + myHeight / 2f + populationPadding;
+        float maxY = parentRect.rect.yMax - myHeight / 2f - populationPadding;
+
+        float randomX = Random.Range(minX, maxX);
+        float randomY = Random.Range(minY, maxY);
+
+        imageState.targetPosition = new Vector2(randomX, randomY);
+    }
+
+    private void GameOver()
+    {
+        StopAllCoroutines();
+        Menu.instance.Defeated();
     }
 }

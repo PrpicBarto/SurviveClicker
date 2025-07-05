@@ -1,19 +1,37 @@
+using NUnit.Framework;
+using System.Collections;
+using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
 public class Menu : MonoBehaviour
 {
+    public static Menu instance;
     [Header("Menu Elements")]
     [SerializeField] GameObject mainMenuPanel;
     [SerializeField] GameObject optionsPanel;
     [SerializeField] GameObject gamePanel;
+    [SerializeField] GameObject gameOverPanel;
     [SerializeField] TMP_Text volumeText;
     [SerializeField] Slider volumeSlider;
+    [SerializeField] Image menuBackground;
+    [SerializeField] List<Color> colorList;
 
     [SerializeField] GameManager gameManager;
-    private bool isPaused;
+    [SerializeField] AudioManager audioManager;
 
+    private bool isPaused;
+    private float lerpDuration = 5f;
+    private int currentColorIndex = 0;
+    private Coroutine changeColors;
+
+    private void Awake()
+    {
+        instance = this;
+        changeColors = StartCoroutine(ChangeColorCoroutine());
+        UpdateAudio();
+    }
     private void Update()
     {
         PauseGame();
@@ -33,11 +51,32 @@ public class Menu : MonoBehaviour
             Debug.Log($"Unpaused");
         }
     }
+
+    IEnumerator ChangeColorCoroutine()
+    {
+        while (true)
+        {
+            Color startColor = menuBackground.color;
+            currentColorIndex = (currentColorIndex + 1) % colorList.Count;
+            Color targetColor = colorList[currentColorIndex];
+
+            float timer = 0f;
+            while (timer < lerpDuration)
+            {
+                timer += Time.deltaTime;
+                float progress = timer / lerpDuration;
+                menuBackground.color = Color.Lerp(startColor, targetColor, progress);
+                yield return null;
+            }
+            menuBackground.color = targetColor;
+        }
+    }
     public void PlayButton()
     {
         mainMenuPanel.SetActive(false);
         gamePanel.SetActive(true);
         gameManager.InitializeGame();
+        StopCoroutine(changeColors);
     }
     public void MainMenuButton()
     {
@@ -54,8 +93,24 @@ public class Menu : MonoBehaviour
         Application.Quit();
     }
 
-    public void UpdateText()
+    public void Defeated()
+    {
+        gameOverPanel.SetActive(true);
+        audioManager.backgroundMusic.Stop();
+        audioManager.backgroundMusic.PlayOneShot(audioManager.defeated);
+    }
+
+    public void BackToMainMenu()
+    {
+        gameOverPanel.SetActive(false);
+        gamePanel.SetActive(false);
+        mainMenuPanel.SetActive(true);
+        audioManager.backgroundMusic.Play();
+    }
+
+    public void UpdateAudio()
     {
         volumeText.text = $"Volume : {(int)(volumeSlider.value * 100)}%";
+        audioManager.backgroundMusic.volume = volumeSlider.value;
     }
 }
