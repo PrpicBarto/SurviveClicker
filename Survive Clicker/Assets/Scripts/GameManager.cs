@@ -20,6 +20,8 @@ public class SeasonEffect
     public float woodProductionMultiplier = 1f;
     public float stoneProductionMultiplier = 1f;
     public float foodGatheringMultiplier = 1f;
+    public float ironProductionMultiplier = 1f;
+    public float toolsProductionMultiplier = 1f;
 }
 
 public class PopulationImageState
@@ -30,7 +32,7 @@ public class PopulationImageState
 }
 public class GameManager : MonoBehaviour
 {
-    //population, wood, gold, food, stone, iron, tools, 
+    //population, wood, gold, food, stone, iron, tools
     [SerializeField] private int days; //x
 
     [Header("Resources")]
@@ -51,7 +53,7 @@ public class GameManager : MonoBehaviour
     [SerializeField] private int woodcutter; //x
     [SerializeField] private int blacksmith; //x
     [SerializeField] private int quarry; //x
-    [SerializeField] private int ironMines;
+    [SerializeField] private int ironMines; //x
 
     [Space(10)]
     [Header("Resources Texts")]
@@ -64,13 +66,14 @@ public class GameManager : MonoBehaviour
     [SerializeField] private TMP_Text toolsText;
 
     [Space(10)]
-    [Header("Buildings Texts")]
+    [Header("Buildings Texts & Tool Efficiency")]
     [SerializeField] private TMP_Text houseText;
     [SerializeField] private TMP_Text farmText;
     [SerializeField] private TMP_Text woodcutterText;
     [SerializeField] private TMP_Text quarryText;
     [SerializeField] private TMP_Text blacksmithText;
     [SerializeField] private TMP_Text notifiactionText;
+    [SerializeField] private float baseToolEfficiency = 0.05f;
 
     [Space(10)]
     [Header("Season references")]
@@ -147,6 +150,8 @@ public class GameManager : MonoBehaviour
             FoodProduction();
             WoodProduction();
             StoneProduction();
+            IronProduction();
+            ToolsProduction();
             FoodConsumption();
             IncreasePopulation();
 
@@ -230,30 +235,53 @@ public class GameManager : MonoBehaviour
             }
         }
     }
+
+    private float GetToolProductionMultiplier()
+    {
+        return 1f + (tools * baseToolEfficiency);
+    }
     /// <summary>
     /// Gather food
     /// </summary>
     private void FoodGathering()
     {
-        food += (int)(unemployed / 2 * currentSeasonEffect.foodGatheringMultiplier);
+        float toolEfficiency = GetToolProductionMultiplier();
+        food += (int)(unemployed / 2 * currentSeasonEffect.foodGatheringMultiplier * toolEfficiency);
     }
     /// <summary>
     /// produce food
     /// </summary>
     private void FoodProduction()
     {
-        food += (int)(farm * 4 * currentSeasonEffect.foodProductionMultiplier);
+        float toolEfficiency = GetToolProductionMultiplier();
+        food += (int)(farm * 4 * currentSeasonEffect.foodProductionMultiplier * toolEfficiency);
     }
     private void StoneProduction()
     {
-        stone += (int)(quarry * 4 * currentSeasonEffect.stoneProductionMultiplier);
+        float toolEfficiency = GetToolProductionMultiplier();
+        stone += (int)(quarry * 4 * currentSeasonEffect.stoneProductionMultiplier * toolEfficiency);
     }
     /// <summary>
     /// proizvodnja drva
     /// </summary>
     private void WoodProduction()
     {
-        wood += (int)(woodcutter * 2 * currentSeasonEffect.woodProductionMultiplier);
+        float toolEfficiency = GetToolProductionMultiplier();
+        wood += (int)(woodcutter * 2 * currentSeasonEffect.woodProductionMultiplier * toolEfficiency);
+    }
+    private void IronProduction()
+    {
+        float toolEfficiency = GetToolProductionMultiplier();
+        iron += (int)(ironMines * 2 * currentSeasonEffect.ironProductionMultiplier * toolEfficiency);
+    }
+    private void ToolsProduction()
+    {
+        int ironNeeded = 3;
+        if (iron > ironNeeded)
+        {
+            iron-= ironNeeded;
+            tools += (int)(blacksmith * 1 * currentSeasonEffect.toolsProductionMultiplier);
+        }
     }
     /// <summary>
     /// number of max residents * 4
@@ -291,7 +319,9 @@ public class GameManager : MonoBehaviour
     {
         return workers + unemployed;
     }
-
+    /// <summary>
+    /// stvaranje populacije na ekranu
+    /// </summary>
     private void UpdatePopulationImages()
     {
         foreach (PopulationImageState state in currentPopulationImages)
@@ -305,8 +335,8 @@ public class GameManager : MonoBehaviour
         {
             if (populationImagePrefab != null && populationImageContainer != null)
             {
-                GameObject newImageGO = Instantiate(populationImagePrefab, populationImageContainer);
-                RectTransform newImageRect = newImageGO.GetComponent<RectTransform>();
+                GameObject newImageGameObject = Instantiate(populationImagePrefab, populationImageContainer);
+                RectTransform newImageRect = newImageGameObject.GetComponent<RectTransform>();
 
                 PopulationImageState newState = new PopulationImageState { rectTransform = newImageRect, currentMoveTime = 0f};
                 SetNewTargetPosition(newState);
@@ -314,12 +344,15 @@ public class GameManager : MonoBehaviour
             }
             else
             {
-                Debug.LogWarning("Population Image Prefab or Container is not assigned in GameManager.");
+                Debug.LogWarning("Population Image prefab or container is not assigned in gameManager.");
                 break;
             }
         }
     }
-
+    /// <summary>
+    /// uzimanje radnika od neradnika
+    /// </summary>
+    /// <param name="amount"></param>
     private void WorkerAssign(int amount)
     {
         if (CanAssignWorker(amount))
@@ -330,7 +363,11 @@ public class GameManager : MonoBehaviour
         }
         else StartCoroutine(NotificationText($"Cannot assign {amount} workers"));
     }
-
+    /// <summary>
+    /// je li moguce zaposliti se
+    /// </summary>
+    /// <param name="amount"></param>
+    /// <returns></returns>
     private bool CanAssignWorker(int amount)
     {
         return unemployed >= amount;
@@ -341,6 +378,7 @@ public class GameManager : MonoBehaviour
     public void BuildFarm()
     {
         Build(5, 0, 2, "Farm", ref farm);
+        UpdateText();
     }
     /// <summary>
     /// izgradi woodcuttera
@@ -348,6 +386,7 @@ public class GameManager : MonoBehaviour
     public void BuildWoodcutter()
     {
         Build(5, 1, 2, "Woodcutter's Lodge", ref woodcutter);
+        UpdateText();
     }
     /// <summary>
     /// izgradi house
@@ -355,6 +394,7 @@ public class GameManager : MonoBehaviour
     public void BuildHouse()
     {
         Build(2, 0, 0, "House", ref house);
+        UpdateText();
     }
     /// <summary>
     /// izgradi quarry
@@ -362,15 +402,22 @@ public class GameManager : MonoBehaviour
     public void BuildQuarry()
     {
         Build(5, 2, 2, "Quarry", ref quarry);
+        UpdateText();
     }
+    public void BuildIronMines()
+    {
+        Build(5, 10, 2, "Iron Mines", ref ironMines);
+        UpdateText();
+    }
+
     /// <summary>
     /// izgradi blacksmitha
     /// </summary>
     public void BuildBlacksmith()
     {
         Build(10, 10, 1, "Blacksmith", ref blacksmith);
+        UpdateText();
     }
-
 
     /// <summary>
     /// updates text
@@ -401,6 +448,14 @@ public class GameManager : MonoBehaviour
         notifiactionText.text = string.Empty;
     }
 
+    /// <summary>
+    /// univerzalna gradnja gradevina
+    /// </summary>
+    /// <param name="woodCost"></param>
+    /// <param name="stoneCost"></param>
+    /// <param name="workerAssign"></param>
+    /// <param name="name"></param>
+    /// <param name="buildingCount"></param>
     private void Build(int woodCost, int stoneCost, int workerAssign, string name, ref int buildingCount)
     {
         if (wood >= woodCost && stone >= stoneCost && unemployed >= workerAssign)
@@ -437,7 +492,7 @@ public class GameManager : MonoBehaviour
 
 
     /// <summary>
-    /// kretanje slike po ekranu(nisam znao kako pa sam koristio ai)
+    /// kretanje slike po ekranu
     /// </summary>
     private void UpdatePopulationImageMovement()
     {
@@ -461,7 +516,10 @@ public class GameManager : MonoBehaviour
             state.rectTransform.localPosition = Vector2.Lerp(state.rectTransform.localPosition, state.targetPosition, Time.deltaTime * populationMoveSpeed);
         }
     }
-
+    /// <summary>
+    /// postavljanje random pozicije na koju ce slika ici
+    /// </summary>
+    /// <param name="imageState"></param>
     private void SetNewTargetPosition(PopulationImageState imageState)
     {
         if (populationImageContainer == null || imageState.rectTransform == null) return;
@@ -469,13 +527,13 @@ public class GameManager : MonoBehaviour
         RectTransform parentRect = populationImageContainer.GetComponent<RectTransform>();
         if (parentRect == null) return;
 
-        float myWidth = imageState.rectTransform.rect.width;
-        float myHeight = imageState.rectTransform.rect.height;
+        float width = imageState.rectTransform.rect.width;
+        float height = imageState.rectTransform.rect.height;
 
-        float minX = parentRect.rect.xMin + myWidth / 2f + populationPadding;
-        float maxX = parentRect.rect.xMax - myWidth / 2f - populationPadding;
-        float minY = parentRect.rect.yMin + myHeight / 2f + populationPadding;
-        float maxY = parentRect.rect.yMax - myHeight / 2f - populationPadding;
+        float minX = parentRect.rect.xMin + width / 2f + populationPadding;
+        float maxX = parentRect.rect.xMax - width / 2f - populationPadding;
+        float minY = parentRect.rect.yMin + height / 2f + populationPadding;
+        float maxY = parentRect.rect.yMax - height / 2f - populationPadding;
 
         float randomX = Random.Range(minX, maxX);
         float randomY = Random.Range(minY, maxY);
