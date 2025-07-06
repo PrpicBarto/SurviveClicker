@@ -70,6 +70,7 @@ public class GameManager : MonoBehaviour
     [SerializeField] private TMP_Text farmText;
     [SerializeField] private TMP_Text woodcutterText;
     [SerializeField] private TMP_Text quarryText;
+    [SerializeField] private TMP_Text ironMinesText;
     [SerializeField] private TMP_Text blacksmithText;
     [SerializeField] private TMP_Text notifiactionText;
     [SerializeField] private float baseToolEfficiency = 0.05f;
@@ -475,6 +476,7 @@ public class GameManager : MonoBehaviour
         farmText.text = $"FARMS: {farm}";
         woodcutterText.text = $"WOODCUTTERS: {woodcutter}";
         quarryText.text = $"QUARRIES: {quarry}";
+        ironMinesText.text = $"IRON MINES: {ironMines}";
         blacksmithText.text = $"BLACKSMITHS: {blacksmith}";
     }
 
