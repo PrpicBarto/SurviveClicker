@@ -1,4 +1,3 @@
-
 using System.Collections;
 using System.Collections.Generic;
 using TMPro;
@@ -74,6 +73,27 @@ public class GameManager : MonoBehaviour
     [SerializeField] private TMP_Text notifiactionText;
     [SerializeField] private float baseToolEfficiency = 0.05f;
 
+    private const int InitialDays = 0;
+    private const int InitialWorkers = 0; 
+    private const int InitialUnemployed = 10; 
+    private const int InitialWood = 15;
+    private const int InitialFood = 100;
+    private const int InitialStone = 10;
+    private const int InitialIron = 0;
+    private const int InitialTools = 0;
+
+    private const int InitialHouse = 3; 
+    private const int InitialFarm = 0;
+    private const int InitialWoodcutter = 0;
+    private const int InitialBlacksmith = 0;
+    private const int InitialQuarry = 0;
+    private const int InitialIronMines = 0;
+
+    private const int InitialBackground = 0; 
+    private const bool InitialIsGameRunning = false;
+    private const bool InitialIsLosingPeople = false;
+
+
     [Space(10)]
     [Header("Season references")]
     [SerializeField] List<string> currentSeason;
@@ -96,16 +116,15 @@ public class GameManager : MonoBehaviour
     private float timer;
     private int currentBackground;
     private bool isGameRunning;
+    private bool isLosingPeople;
 
     private SeasonEffect currentSeasonEffect;
 
     private void Awake()
     {
         currentBackground = 0;
-        UpdateText();
-        UpdateSeasonState();
-        UpdatePopulationImages();
-        StartCoroutine(ChangeSeasons());
+        ResetGame();
+        InitializeGame();
     }
     private void Update()
     {
@@ -210,18 +229,21 @@ public class GameManager : MonoBehaviour
     {
         isGameRunning = true;
         UpdateText();
+        StartCoroutine(ChangeSeasons());
     }
     /// <summary>
     /// Consume food
     /// </summary>
     private void FoodConsumption()
     {
-        string text = $"You lost {food - Population()} food";
+        string text = $"You lost food for {Population()} people";
         StartCoroutine(NotificationText(text));
         food -= Population();
 
-        if (food < 0)
+        if (food <= 0)
         {
+            food = 0;
+            isLosingPeople = true;
             StartCoroutine(NotificationText($"You are losing people!"));
             if (unemployed > 0)
             {
@@ -308,7 +330,7 @@ public class GameManager : MonoBehaviour
     /// </summary>
     private void IncreasePopulation()
     {
-        if(days % 2 == 0)
+        if(days % 2 == 0 && isLosingPeople == false)
         {
             if (Population() < GetMaxPopulation())
             {
@@ -556,4 +578,43 @@ public class GameManager : MonoBehaviour
         StopAllCoroutines();
         Menu.instance.Defeated();
     }
+
+    public void ResetGame()
+    {
+        StopAllCoroutines();
+
+        days = InitialDays;
+        workers = InitialWorkers;
+        unemployed = InitialUnemployed;
+        wood = InitialWood;
+        food = InitialFood;
+        stone = InitialStone;
+        iron = InitialIron;
+        tools = InitialTools;
+
+        house = InitialHouse;
+        farm = InitialFarm;
+        woodcutter = InitialWoodcutter;
+        blacksmith = InitialBlacksmith;
+        quarry = InitialQuarry;
+        ironMines = InitialIronMines;
+
+        isGameRunning = InitialIsGameRunning;
+        isLosingPeople = InitialIsLosingPeople;
+        timer = 0f;
+
+        currentBackground = InitialBackground;
+        gameBackground.color = gameColors[currentBackground];
+        UpdateSeasonState();
+
+        UpdatePopulationImages();
+
+        UpdateText();
+
+        Debug.Log($"Reset to start values");
+
+        
+    }
+
+
 }

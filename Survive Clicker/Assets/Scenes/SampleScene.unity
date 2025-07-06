@@ -3750,9 +3750,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   days: 0
   workers: 0
-  unemployed: 12
+  unemployed: 1
   wood: 15
-  food: 100
+  food: 1
   stone: 20
   iron: 0
   tools: 0

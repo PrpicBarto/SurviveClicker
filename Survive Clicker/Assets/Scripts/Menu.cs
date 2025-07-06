@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
 public class Menu : MonoBehaviour
@@ -31,6 +32,7 @@ public class Menu : MonoBehaviour
         instance = this;
         changeColors = StartCoroutine(ChangeColorCoroutine());
         UpdateAudio();
+        gameManager.gameObject.SetActive(true);
     }
     private void Update()
     {
@@ -77,6 +79,7 @@ public class Menu : MonoBehaviour
         gamePanel.SetActive(true);
         gameManager.InitializeGame();
         StopCoroutine(changeColors);
+        gameManager.ResetGame();
     }
     public void MainMenuButton()
     {
@@ -98,6 +101,7 @@ public class Menu : MonoBehaviour
         gameOverPanel.SetActive(true);
         audioManager.backgroundMusic.Stop();
         audioManager.backgroundMusic.PlayOneShot(audioManager.defeated);
+        
     }
 
     public void BackToMainMenu()
