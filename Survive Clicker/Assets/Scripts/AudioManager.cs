@@ -6,6 +6,7 @@ public class AudioManager : MonoBehaviour
 
     public AudioSource backgroundMusic;
     public AudioClip defeated;
+    public AudioClip won;
     private void Awake()
     {
         instance = this;

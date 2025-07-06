@@ -33,6 +33,7 @@ public class GameManager : MonoBehaviour
 {
     //population, wood, gold, food, stone, iron, tools
     [SerializeField] private int days; //x
+    [SerializeField] private int winPopulation = 100; //x
 
     [Header("Resources")]
     [SerializeField] private int workers; //x
@@ -123,8 +124,6 @@ public class GameManager : MonoBehaviour
     private void Awake()
     {
         currentBackground = 0;
-        ResetGame();
-        InitializeGame();
     }
     private void Update()
     {
@@ -175,6 +174,11 @@ public class GameManager : MonoBehaviour
             ToolsProduction();
             FoodConsumption();
             IncreasePopulation();
+
+            if (Population() >= winPopulation)
+            {
+                WinCondition();
+            }
 
             UpdateText();
             UpdatePopulationImages();
@@ -261,6 +265,7 @@ public class GameManager : MonoBehaviour
             {
                 GameOver();
             }
+            
         }
     }
 
@@ -577,6 +582,11 @@ public class GameManager : MonoBehaviour
     {
         StopAllCoroutines();
         Menu.instance.Defeated();
+    }
+    private void WinCondition()
+    {
+        StopAllCoroutines();
+        Menu.instance.Win();
     }
 
     public void ResetGame()

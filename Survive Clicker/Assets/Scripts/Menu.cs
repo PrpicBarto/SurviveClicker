@@ -14,6 +14,7 @@ public class Menu : MonoBehaviour
     [SerializeField] GameObject optionsPanel;
     [SerializeField] GameObject gamePanel;
     [SerializeField] GameObject gameOverPanel;
+    [SerializeField] GameObject winPanel;
     [SerializeField] TMP_Text volumeText;
     [SerializeField] Slider volumeSlider;
     [SerializeField] Image menuBackground;
@@ -77,9 +78,9 @@ public class Menu : MonoBehaviour
     {
         mainMenuPanel.SetActive(false);
         gamePanel.SetActive(true);
+        gameManager.ResetGame();
         gameManager.InitializeGame();
         StopCoroutine(changeColors);
-        gameManager.ResetGame();
     }
     public void MainMenuButton()
     {
@@ -103,10 +104,24 @@ public class Menu : MonoBehaviour
         audioManager.backgroundMusic.PlayOneShot(audioManager.defeated);
         
     }
+    public void Win()
+    {
+        winPanel.SetActive(true);
+        audioManager.backgroundMusic.Stop();
+        audioManager.backgroundMusic.PlayOneShot(audioManager.won);
+        
+    }
 
-    public void BackToMainMenu()
+    public void BackToMainMenuQuit()
     {
         gameOverPanel.SetActive(false);
+        gamePanel.SetActive(false);
+        mainMenuPanel.SetActive(true);
+        audioManager.backgroundMusic.Play();
+    }
+    public void BackToMainMenuWin()
+    {
+        winPanel.SetActive(false);
         gamePanel.SetActive(false);
         mainMenuPanel.SetActive(true);
         audioManager.backgroundMusic.Play();
